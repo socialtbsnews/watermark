@@ -10,10 +10,13 @@ Quality rules:
 from __future__ import annotations
 
 import os
+import random
 import sys
 from dataclasses import dataclass
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+import fingerprint
 
 SUPPORTED = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
@@ -31,6 +34,9 @@ class Settings:
     brand: str = "THE BUSINESS STANDARD"
     photographer: str = ""       # e.g. "Syed Zakir Hossain"; empty = brand only
     credit_pos: str = "bottom-left"  # top-left, top-right, bottom-left, bottom-right
+    protect: bool = False        # faint randomised logo pattern over the whole photo
+    protect_pct: float = 10.0    # pattern opacity
+    hidden_mark: bool = True     # invisible TBS fingerprint
 
 
 def _font_path(name: str) -> str:
@@ -147,17 +153,58 @@ def build_mark(settings: Settings, photo_w: int) -> Image.Image:
     return mark
 
 
+def _place(layer: Image.Image, m: Image.Image, px: int, py: int) -> None:
+    """alpha_composite m onto layer at (px, py), clipping at the edges."""
+    l, t = max(0, -px), max(0, -py)
+    r, b = min(m.width, layer.width - px), min(m.height, layer.height - py)
+    if r > l and b > t:
+        layer.alpha_composite(m.crop((l, t, r, b)), (px + l, py + t))
+
+
+def protective_pattern(work: Image.Image, settings: Settings) -> Image.Image:
+    """Repeat the logo faintly across the photo with random jitter per tile, so
+    removing it means repainting the whole picture. New randomness every photo."""
+    W, H = work.size
+    s = Settings(**{**settings.__dict__, "size_pct": 11.0, "opacity_pct": settings.protect_pct})
+    base = build_mark(s, W)
+    rng = random.Random()
+    step_x, step_y = base.width * 1.9, base.height * 1.9
+    layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
+    row = 0
+    y = -step_y / 2
+    while y < H + step_y:
+        x = -step_x / 2 + (step_x / 2 if row % 2 else 0)
+        while x < W + step_x:
+            k = rng.uniform(0.8, 1.2)
+            m = base.resize((max(1, int(base.width * k)), max(1, int(base.height * k))), Image.BICUBIC)
+            m = m.rotate(rng.uniform(-25, 25), resample=Image.BICUBIC, expand=True)
+            jx = rng.uniform(-0.25, 0.25) * step_x
+            jy = rng.uniform(-0.25, 0.25) * step_y
+            _place(layer, m, int(x + jx - m.width / 2), int(y + jy - m.height / 2))
+            x += step_x
+        y += step_y
+        row += 1
+    return Image.alpha_composite(work, layer)
+
+
 def apply_watermark(photo: Image.Image, settings: Settings) -> Image.Image:
     """Return a new image with the watermark centred. Same pixel size as input."""
     base = ImageOps.exif_transpose(photo)  # upright, lossless pixel reorder
     had_alpha = base.mode in ("RGBA", "LA") or "transparency" in base.info
     work = base.convert("RGBA")
+    if settings.protect:
+        work = protective_pattern(work, settings)
     mark = build_mark(settings, work.width)
     x = (work.width - mark.width) // 2
     y = (work.height - mark.height) // 2
     layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
     layer.paste(mark, (x, y), mark)
     out = draw_credit(Image.alpha_composite(work, layer), settings)
+    if settings.hidden_mark:
+        alpha = out.getchannel("A")
+        out = fingerprint.embed(out)
+        if had_alpha:
+            out.putalpha(alpha)
     return out if had_alpha else out.convert("RGB")
 
 

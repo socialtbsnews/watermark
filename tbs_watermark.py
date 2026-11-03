@@ -13,10 +13,11 @@ import sys
 import threading
 import tkinter as tk
 from dataclasses import asdict
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from PIL import Image, ImageOps, ImageTk
 
+import fingerprint
 from watermark_core import SUPPORTED, Settings, apply_watermark, process_file
 
 try:
@@ -77,7 +78,7 @@ class App:
         self.sample = None
 
         root.title("TBS Watermark")
-        root.geometry("820x780")
+        root.geometry("860x860")
         root.minsize(560, 520)
         root.configure(bg=BG)
 
@@ -151,6 +152,22 @@ class App:
 
         self._slider(ctl, "Opacity", self.op_var, 0, 100, "% (0 = invisible, 100 = solid)")
 
+        # Protection
+        prow = tk.Frame(ctl, bg=BG)
+        prow.pack(fill="x", pady=(10, 4))
+        tk.Label(prow, text="Protect", width=8, anchor="w", bg=BG, fg=INK).pack(side="left")
+        self.protect_var = tk.BooleanVar(value=self.s.protect)
+        self.hidden_var = tk.BooleanVar(value=self.s.hidden_mark)
+        for text, var in (("Protective pattern (hard to remove)", self.protect_var),
+                          ("Hidden fingerprint (invisible)", self.hidden_var)):
+            tk.Checkbutton(prow, text=text, variable=var, bg=BG, fg=INK, selectcolor=PANEL,
+                           activebackground=BG, activeforeground=INK,
+                           command=self.protect_changed).pack(side="left", padx=(8, 0))
+        tk.Button(prow, text="Check photo…", command=self.check_photo, bg=PANEL, fg=INK,
+                  relief="flat", padx=10, pady=4).pack(side="right")
+        self.prot_var = tk.DoubleVar(value=self.s.protect_pct)
+        self._slider(ctl, "Pattern", self.prot_var, 4, 40, "% pattern strength")
+
         bottom = tk.Frame(root, bg=BG)
         bottom.pack(fill="x", padx=20, pady=(4, 16))
         self.status = tk.Label(bottom, text="Ready.", bg=BG, fg=MUTED, anchor="w")
@@ -176,12 +193,40 @@ class App:
             val.config(text=f"{var.get():.0f}{unit}")
             self.s.size_pct = round(self.size_var.get())
             self.s.opacity_pct = round(self.op_var.get())
+            if hasattr(self, "prot_var"):
+                self.s.protect_pct = round(self.prot_var.get())
             save_settings(self.s)
             self.show_sample()
 
         ttk.Scale(row, from_=lo, to=hi, variable=var, command=lambda _v: changed()).pack(side="left", fill="x", expand=True, padx=8)
         val.pack(side="left")
         val.config(text=f"{var.get():.0f}{unit}")
+
+    def protect_changed(self):
+        self.s.protect = bool(self.protect_var.get())
+        self.s.hidden_mark = bool(self.hidden_var.get())
+        save_settings(self.s)
+        self.show_sample()
+
+    def check_photo(self):
+        p = filedialog.askopenfilename(title="Check if a photo carries the TBS fingerprint",
+                                       filetypes=[("Photos", "*.jpg *.jpeg *.png *.tif *.tiff *.webp")])
+        if not p:
+            return
+        self.status.config(text=f"Checking {os.path.basename(p)}…")
+
+        def work():
+            try:
+                with Image.open(p) as im:
+                    v = fingerprint.verdict(fingerprint.score(im))
+                msg = {"yes": "TBS fingerprint FOUND: this photo came from the TBS Watermark app.",
+                       "maybe": "Weak match: possibly a TBS photo that was heavily edited.",
+                       "no": "No TBS fingerprint found."}[v]
+            except Exception as e:
+                msg = f"Could not check that file ({e})."
+            self.root.after(0, lambda: (self.status.config(text=f"{os.path.basename(p)}: {msg}"),
+                                        messagebox.showinfo("Check photo", msg)))
+        threading.Thread(target=work, daemon=True).start()
 
     def credit_changed(self):
         self.s.photographer = self.name_var.get()
