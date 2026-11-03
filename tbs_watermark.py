@@ -15,7 +15,7 @@ import tkinter as tk
 from dataclasses import asdict
 from tkinter import filedialog, ttk
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageOps, ImageTk
 
 from watermark_core import SUPPORTED, Settings, apply_watermark, process_file
 
@@ -183,15 +183,16 @@ class App:
     def show_sample(self, photo: Image.Image | None = None):
         if photo is not None:
             self.sample = photo
-        if self.sample is None:
-            self.sample = Image.new("RGB", (1600, 1067), (70, 82, 96))
+        placeholder = self.sample is None
+        base = Image.new("RGB", (1600, 1067), (70, 82, 96)) if placeholder else self.sample
         w = max(200, self.drop.winfo_width() - 20)
         h = max(150, self.drop.winfo_height() - 20)
-        thumb = self.sample.copy()
+        thumb = base.copy()
         thumb.thumbnail((w, h))
         marked = apply_watermark(thumb, self.s)
         self.preview_img = ImageTk.PhotoImage(marked)
-        self.drop.config(image=self.preview_img, compound="center", text="")
+        self.drop.config(image=self.preview_img, compound="center",
+                         text="Drop photos here" if placeholder else "", fg=INK)
 
     def refresh_logo_label(self):
         if self.s.logo_path and os.path.exists(self.s.logo_path):
@@ -249,7 +250,22 @@ class App:
             self.status.config(text="Those files are not photos (JPG, PNG, TIFF or WebP).")
 
     def run(self, files):
+        def load_preview(path):
+            # Keep the latest original photo as the live preview, so sliders
+            # re-draw the watermark on the real photo.
+            try:
+                with Image.open(path) as im:
+                    im.draft("RGB", (1600, 1600))
+                    im = ImageOps.exif_transpose(im)
+                    im.thumbnail((1600, 1600))
+                    return im.convert("RGB")
+            except Exception:
+                return None
+
         def work():
+            prev = load_preview(files[-1])
+            if prev is not None:
+                self.root.after(0, self.show_sample, prev)
             done, failed = 0, []
             for i, f in enumerate(files, 1):
                 self.root.after(0, self.status.config, {"text": f"Watermarking {i} of {len(files)}: {os.path.basename(f)}"})
@@ -257,11 +273,6 @@ class App:
                     dst = process_file(f, self.s)
                     self.last_folder = os.path.dirname(dst)
                     done += 1
-                    if i == len(files):
-                        with Image.open(dst) as im:
-                            im.thumbnail((1600, 1600))
-                            prev = im.convert("RGB")
-                        self.root.after(0, lambda p=prev: self._show_result(p))
                 except Exception as e:
                     failed.append(f"{os.path.basename(f)} ({e})")
             msg = f"Saved {done} photo{'s' if done != 1 else ''} to {self.last_folder}"
@@ -269,13 +280,6 @@ class App:
                 msg += f". Failed: {', '.join(failed)}"
             self.root.after(0, self._finish, msg)
         threading.Thread(target=work, daemon=True).start()
-
-    def _show_result(self, img):
-        w = max(200, self.drop.winfo_width() - 20)
-        h = max(150, self.drop.winfo_height() - 20)
-        img.thumbnail((w, h))
-        self.preview_img = ImageTk.PhotoImage(img)
-        self.drop.config(image=self.preview_img, text="")
 
     def _finish(self, msg):
         self.status.config(text=msg)
