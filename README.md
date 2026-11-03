@@ -1,5 +1,7 @@
 # TBS Watermark (desktop app)
 
+> Also in this repo: **TBS Reel**, a vertical reel maker. See [`reel/README.md`](reel/README.md).
+
 Drag photos (or a folder) onto the window. Check each one in the preview,
 drag the logo anywhere on the photo (each photo keeps its own spot; new photos
 start where you last put it), then click **Export**. Photos are saved in a

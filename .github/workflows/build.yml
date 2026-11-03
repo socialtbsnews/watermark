@@ -1,13 +1,15 @@
-name: Build desktop app
+name: Build desktop apps
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: write
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
@@ -16,18 +18,33 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: python -m pip install -r requirements.txt
+      - name: Check the reel engine works
+        run: python reel/selftest.py
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
           python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png;." --add-data "fonts;fonts" --add-data "brand.png;." --add-data "icon.png;." --icon icon.ico --version-file version_info.txt tbs_watermark.py
           mv "dist/TBS Watermark.exe" dist/TBS-Watermark-Windows.exe
+          python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Reel" --collect-all tkinterdnd2 --collect-all imageio_ffmpeg --add-data "logo.png;." --add-data "fonts;fonts" --add-data "brand.png;." --add-data "icon.png;." --icon icon.ico --version-file reel/version_info.txt reel/tbs_reel.py
+          mv "dist/TBS Reel.exe" dist/TBS-Reel-Windows.exe
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
           python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --osx-bundle-identifier com.tbsnews.watermark --collect-all tkinterdnd2 --add-data "logo.png:." --add-data "fonts:fonts" --add-data "brand.png:." --add-data "icon.png:." --icon icon.png tbs_watermark.py
-          cd dist && ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
+          python -m PyInstaller --noconfirm --windowed --name "TBS Reel" --osx-bundle-identifier com.tbsnews.reel --collect-all tkinterdnd2 --collect-all imageio_ffmpeg --add-data "logo.png:." --add-data "fonts:fonts" --add-data "brand.png:." --add-data "icon.png:." --icon icon.png reel/tbs_reel.py
+          cd dist
+          ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
+          ditto -c -k --keepParent "TBS Reel.app" TBS-Reel-Mac.zip
+      - name: Keep the builds (downloadable from this run's page)
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps-${{ runner.os }}
+          path: |
+            dist/TBS-Watermark-*
+            dist/TBS-Reel-*
       - name: Publish to the release (each system as soon as it is built)
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -35,9 +52,9 @@ jobs:
           TAG="v1.0.${{ github.run_number }}"
           gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "${{ github.repository }}" --target "${{ github.sha }}" \
-              --title "TBS Watermark $TAG" \
-              --notes "Download TBS-Watermark-Windows.exe for Windows or TBS-Watermark-Mac.zip for Mac." || true
+              --title "TBS apps $TAG" \
+              --notes "TBS Watermark: TBS-Watermark-Windows.exe (Windows) or TBS-Watermark-Mac.zip (Mac). TBS Reel: TBS-Reel-Windows.exe (Windows) or TBS-Reel-Mac.zip (Mac)." || true
           for i in 1 2 3; do
-            gh release upload "$TAG" dist/TBS-Watermark-* --clobber --repo "${{ github.repository }}" && break
+            gh release upload "$TAG" dist/TBS-Watermark-* dist/TBS-Reel-* --clobber --repo "${{ github.repository }}" && break
             sleep 5
           done
