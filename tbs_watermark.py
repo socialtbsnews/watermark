@@ -425,7 +425,7 @@ class App:
         if st.hidden_mark:
             # Real fingerprint in the preview too. "Show fingerprint" boosts it
             # (preview only) so you can see where it is; exports stay invisible.
-            marked = fingerprint.embed(marked, amp=28.0 if self.reveal_var.get() else 3.0)
+            marked = fingerprint.embed(marked, amp=10.0 if self.reveal_var.get() else 3.0)
         self.preview_img = ImageTk.PhotoImage(marked, master=self.root)
         x0, y0 = (cw - marked.width) // 2, (ch - marked.height) // 2
         c.create_image(x0, y0, image=self.preview_img, anchor="nw")
