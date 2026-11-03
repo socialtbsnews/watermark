@@ -10,6 +10,7 @@ Quality rules:
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -25,6 +26,68 @@ class Settings:
     opacity_pct: float = 60.0    # 0-100
     out_dir_name: str = "Watermarked"
     suffix: str = "_TBS"
+    credit_on: bool = True       # bottom-left photo credit line
+    brand: str = "THE BUSINESS STANDARD"
+    photographer: str = ""       # e.g. "Syed Zakir Hossain"; empty = brand only
+
+
+def _font_path(name: str) -> str:
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, "fonts", name)
+
+
+def _font(name: str, size: int):
+    try:
+        return ImageFont.truetype(_font_path(name), max(6, size))
+    except OSError:
+        return ImageFont.load_default(max(6, size))
+
+
+def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
+    """Bottom-left credit: BRAND (small caps, bold serif) | Photo: Name (italic)."""
+    if not settings.credit_on or not (settings.brand.strip() or settings.photographer.strip()):
+        return img
+    W, H = img.size
+    cap = max(10, round(min(W, H * 1.5) * 0.026))   # full-cap height scale
+    small = round(cap * 0.78)
+    bold_big, bold_small = _font("PT_Serif-Web-Bold.ttf", cap), _font("PT_Serif-Web-Bold.ttf", small)
+    ital = _font("PT_Serif-Web-Italic.ttf", round(cap * 0.95))
+
+    # Build runs of (text, font)
+    runs = []
+    brand = settings.brand.strip().upper()
+    for i, word in enumerate(brand.split()):
+        if i:
+            runs.append((" ", bold_small))
+        runs.append((word[0], bold_big))
+        if len(word) > 1:
+            runs.append((word[1:], bold_small))
+    name = settings.photographer.strip()
+    if name:
+        runs.append((" | " if brand else "", ital))
+        runs.append((f"Photo: {name}", ital))
+
+    # Soft dark band behind the text for legibility on bright photos
+    band_h = round(cap * 4.2)
+    grad = Image.new("L", (1, band_h))
+    for y in range(band_h):
+        grad.putpixel((0, y), round(150 * (y / band_h) ** 1.6))
+    shade = Image.new("RGBA", (W, band_h), (0, 0, 0, 0))
+    shade.putalpha(grad.resize((W, band_h)))
+    out = img.convert("RGBA")
+    band = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    band.paste(shade, (0, H - band_h))
+    out = Image.alpha_composite(out, band)
+
+    d = ImageDraw.Draw(out)
+    x = round(W * 0.025)
+    baseline = H - round(cap * 1.1)
+    shadow = max(1, round(cap * 0.05))
+    for text, font in runs:
+        d.text((x + shadow, baseline + shadow), text, font=font, fill=(0, 0, 0, 110), anchor="ls")
+        d.text((x, baseline), text, font=font, fill=(255, 255, 255, 255), anchor="ls")
+        x += d.textlength(text, font=font)
+    return out
 
 
 def _text_mark(text: str, width: int) -> Image.Image:
@@ -71,7 +134,7 @@ def apply_watermark(photo: Image.Image, settings: Settings) -> Image.Image:
     y = (work.height - mark.height) // 2
     layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
     layer.paste(mark, (x, y), mark)
-    out = Image.alpha_composite(work, layer)
+    out = draw_credit(Image.alpha_composite(work, layer), settings)
     return out if had_alpha else out.convert("RGB")
 
 

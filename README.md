@@ -3,6 +3,11 @@
 Drag photos onto the window. Each one is saved with the TBS watermark in the
 centre, in a `Watermarked` folder next to the original. Originals are never changed.
 
+## Photo credit
+Type the photographer's name in "Photo by". Every photo gets a credit line at the
+bottom left: **THE BUSINESS STANDARD | Photo: Name**, white on a soft dark fade.
+Untick "Show credit line" to leave it off. Font: PT Serif (SIL Open Font License, see `fonts/OFL.txt`).
+
 ## Quality
 - Full original resolution, no resizing.
 - JPEG saved at maximum quality (100, no chroma subsampling). Tested on a

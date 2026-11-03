@@ -77,7 +77,7 @@ class App:
         self.sample = None
 
         root.title("TBS Watermark")
-        root.geometry("760x640")
+        root.geometry("780x700")
         root.minsize(560, 520)
         root.configure(bg=BG)
 
@@ -117,6 +117,18 @@ class App:
         self.size_var = tk.DoubleVar(value=self.s.size_pct)
         self.op_var = tk.DoubleVar(value=self.s.opacity_pct)
         self._slider(ctl, "Size", self.size_var, 5, 80, "% of photo width")
+        row2 = tk.Frame(ctl, bg=BG)
+        row2.pack(fill="x", pady=4)
+        tk.Label(row2, text="Photo by", width=8, anchor="w", bg=BG, fg=INK).pack(side="left")
+        self.name_var = tk.StringVar(value=self.s.photographer)
+        tk.Entry(row2, textvariable=self.name_var, bg=PANEL, fg=INK, insertbackground=INK,
+                 relief="flat", font=("Segoe UI", 11)).pack(side="left", fill="x", expand=True, padx=8, ipady=4)
+        self.credit_var = tk.BooleanVar(value=self.s.credit_on)
+        tk.Checkbutton(row2, text="Show credit line", variable=self.credit_var, bg=BG, fg=INK,
+                       selectcolor=PANEL, activebackground=BG, activeforeground=INK,
+                       command=self.credit_changed).pack(side="left")
+        self.name_var.trace_add("write", lambda *_: self.credit_changed())
+
         self._slider(ctl, "Opacity", self.op_var, 0, 100, "% (0 = invisible, 100 = solid)")
 
         bottom = tk.Frame(root, bg=BG)
@@ -150,6 +162,12 @@ class App:
         ttk.Scale(row, from_=lo, to=hi, variable=var, command=lambda _v: changed()).pack(side="left", fill="x", expand=True, padx=8)
         val.pack(side="left")
         val.config(text=f"{var.get():.0f}{unit}")
+
+    def credit_changed(self):
+        self.s.photographer = self.name_var.get()
+        self.s.credit_on = bool(self.credit_var.get())
+        save_settings(self.s)
+        self.show_sample()
 
     # ---------- preview
     def show_sample(self, photo: Image.Image | None = None):
