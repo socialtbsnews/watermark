@@ -250,7 +250,7 @@ class App:
             self.s.opacity_pct = round(self.op_var.get())
             if hasattr(self, "prot_var"):
                 self.s.protect_pct = round(self.prot_var.get())
-            save_settings(self.s)
+            self.save()
             self.refresh()
 
         ttk.Scale(r, from_=lo, to=hi, variable=var, command=changed).pack(side="left", fill="x", expand=True)
@@ -259,6 +259,12 @@ class App:
         if not hasattr(self, "_slider_labels"):
             self._slider_labels = []
         self._slider_labels.append(lambda: val.config(text=f"{var.get():.0f}%"))
+
+    def save(self):
+        """Write settings to disk shortly after the last change, not on every slider tick."""
+        if getattr(self, "_save_job", None):
+            self.root.after_cancel(self._save_job)
+        self._save_job = self.root.after(500, lambda: save_settings(self.s))
 
     def set_status(self, text):
         self.status.config(text=text)
@@ -269,12 +275,12 @@ class App:
         self.s.credit_on = bool(self.credit_var.get())
         if hasattr(self, "pos_menu"):
             self.s.credit_pos = self.pos_menu.get().lower().replace(" ", "-")
-        save_settings(self.s)
+        self.save()
         self.refresh()
 
     def style_changed(self):
         self.s.style = "glass" if self.style_menu.get().startswith("Dark glass") else "plain"
-        save_settings(self.s)
+        self.save()
         self.refresh(resize=False)
 
     def reset_all(self):
@@ -295,14 +301,14 @@ class App:
             self.pos[f] = (0.5, 0.5)
         for refresh_label in getattr(self, "_slider_labels", []):
             refresh_label()
-        save_settings(self.s)
+        self.save()
         self.refresh()
         self.set_status("Settings reset: logo centred, size 25%, opacity 60%, plain logo.")
 
     def protect_changed(self):
         self.s.protect = bool(self.protect_var.get())
         self.s.hidden_mark = bool(self.hidden_var.get())
-        save_settings(self.s)
+        self.save()
         self.refresh()
 
     # ---------------- photo list
@@ -366,7 +372,7 @@ class App:
         if f:
             self.pos[f] = (0.5, 0.5)
             self.s.pos_x, self.s.pos_y = 0.5, 0.5
-            save_settings(self.s)
+            self.save()
             self.refresh()
 
     # ---------------- preview drawing
@@ -380,7 +386,7 @@ class App:
             self.thumb = None
         if not self.redraw_pending:
             self.redraw_pending = True
-            self.root.after_idle(self._draw)
+            self.root.after(15, self._draw)
 
     def _draw(self):
         self.redraw_pending = False
@@ -396,7 +402,7 @@ class App:
             self.thumb = self.full_preview.copy()
             self.thumb.thumbnail((cw - 16, ch - 16))
         st = self.settings_for(self.current())
-        marked = apply_watermark(self.thumb, st)
+        marked = apply_watermark(self.thumb, st, preview=True)
         self.preview_img = ImageTk.PhotoImage(marked, master=self.root)
         x0, y0 = (cw - marked.width) // 2, (ch - marked.height) // 2
         c.create_image(x0, y0, image=self.preview_img, anchor="nw")
@@ -436,7 +442,7 @@ class App:
     def on_release(self, _e):
         if self.drag and self.files:
             self.s.pos_x, self.s.pos_y = self.pos[self.current()]
-            save_settings(self.s)  # new photos start where you last placed the logo
+            self.save()  # new photos start where you last placed the logo
         self.drag = None
 
     # ---------------- files and folders
@@ -457,12 +463,12 @@ class App:
         p = filedialog.askdirectory(title="Choose where to save watermarked photos")
         if p:
             self.s.out_dir = p
-            save_settings(self.s)
+            self.save()
             self.refresh_out_label()
 
     def reset_out(self):
         self.s.out_dir = ""
-        save_settings(self.s)
+        self.save()
         self.refresh_out_label()
 
     def choose_logo(self):
@@ -470,7 +476,7 @@ class App:
                                        filetypes=[("Images", "*.png *.webp *.jpg *.jpeg")])
         if p:
             self.s.logo_path = p
-            save_settings(self.s)
+            self.save()
             self.refresh_logo_label()
             self.refresh()
 
@@ -559,7 +565,12 @@ def make_root() -> tk.Tk:
 
 def main():
     root = make_root()
-    App(root)
+    app = App(root)
+
+    def on_close():
+        save_settings(app.s)
+        root.destroy()
+    root.protocol("WM_DELETE_WINDOW", on_close)
     root.mainloop()
 
 

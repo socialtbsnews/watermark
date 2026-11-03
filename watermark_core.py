@@ -13,6 +13,7 @@ import os
 import random
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps
 
@@ -47,11 +48,17 @@ def _font_path(name: str) -> str:
     return os.path.join(base, "fonts", name)
 
 
+@lru_cache(maxsize=64)
 def _font(name: str, size: int):
     try:
         return ImageFont.truetype(_font_path(name), max(6, size))
     except OSError:
         return ImageFont.load_default(max(6, size))
+
+
+@lru_cache(maxsize=2)
+def _brand(path: str) -> Image.Image:
+    return Image.open(path).convert("RGBA")
 
 
 def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
@@ -68,7 +75,7 @@ def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
     brand_img = None
     bp = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "brand.png")
     if settings.brand.strip() and os.path.exists(bp):
-        bm = Image.open(bp).convert("RGBA")
+        bm = _brand(bp)
         bh = round(cap * 0.85)
         brand_img = bm.resize((max(1, round(bm.width * bh / bm.height)), bh), Image.LANCZOS)
 
@@ -163,20 +170,36 @@ def _glass(mark: Image.Image) -> Image.Image:
     return Image.alpha_composite(dark, light)
 
 
-def build_mark(settings: Settings, photo_w: int) -> Image.Image:
-    if settings.logo_path and os.path.exists(settings.logo_path):
-        mark = Image.open(settings.logo_path).convert("RGBA")
+@lru_cache(maxsize=8)
+def _source_mark(logo_path: str, mtime: float, style: str, text: str) -> Image.Image:
+    """Full-size logo (after the look is applied). Cached: loading and the
+    dark-glass conversion are slow, and the preview redraws many times a second."""
+    if logo_path:
+        mark = Image.open(logo_path).convert("RGBA")
     else:
-        mark = _text_mark(settings.text or "TBS", photo_w)
-    if settings.style == "glass":
+        mark = _text_mark(text or "TBS", 0)
+    if style == "glass":
         mark = _glass(mark)
-    target_w = max(1, round(photo_w * settings.size_pct / 100))
+    return mark
+
+
+@lru_cache(maxsize=32)
+def _sized_mark(path: str, mtime: float, style: str, text: str, target_w: int, opacity: float) -> Image.Image:
+    mark = _source_mark(path, mtime, style, text)
     target_h = max(1, round(mark.height * target_w / mark.width))
     mark = mark.resize((target_w, target_h), Image.LANCZOS)
-    if settings.opacity_pct < 100:
-        alpha = mark.getchannel("A").point(lambda a: round(a * settings.opacity_pct / 100))
+    if opacity < 100:
+        alpha = mark.getchannel("A").point(lambda a: round(a * opacity / 100))
         mark.putalpha(alpha)
     return mark
+
+
+def build_mark(settings: Settings, photo_w: int) -> Image.Image:
+    """The logo at its final size and opacity (cached; treat as read-only)."""
+    path = settings.logo_path if settings.logo_path and os.path.exists(settings.logo_path) else ""
+    target_w = max(1, round(photo_w * settings.size_pct / 100))
+    return _sized_mark(path, os.path.getmtime(path) if path else 0.0, settings.style, settings.text,
+                       target_w, float(settings.opacity_pct))
 
 
 def _place(layer: Image.Image, m: Image.Image, px: int, py: int) -> None:
@@ -187,13 +210,13 @@ def _place(layer: Image.Image, m: Image.Image, px: int, py: int) -> None:
         layer.alpha_composite(m.crop((l, t, r, b)), (px + l, py + t))
 
 
-def protective_pattern(work: Image.Image, settings: Settings) -> Image.Image:
+def protective_pattern(work: Image.Image, settings: Settings, seed: int | None = None) -> Image.Image:
     """Repeat the logo faintly across the photo with random jitter per tile, so
     removing it means repainting the whole picture. New randomness every photo."""
     W, H = work.size
     s = Settings(**{**settings.__dict__, "size_pct": 11.0, "opacity_pct": settings.protect_pct})
     base = build_mark(s, W)
-    rng = random.Random()
+    rng = random.Random(seed)
     step_x, step_y = base.width * 1.9, base.height * 1.9
     layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
     row = 0
@@ -220,19 +243,20 @@ def mark_origin(W: int, H: int, mw: int, mh: int, settings: Settings) -> tuple[i
     return min(max(0, x), max(0, W - mw)), min(max(0, y), max(0, H - mh))
 
 
-def apply_watermark(photo: Image.Image, settings: Settings) -> Image.Image:
+def apply_watermark(photo: Image.Image, settings: Settings, preview: bool = False) -> Image.Image:
     """Return a new image with the watermark at (pos_x, pos_y). Same pixel size as input."""
     base = ImageOps.exif_transpose(photo)  # upright, lossless pixel reorder
     had_alpha = base.mode in ("RGBA", "LA") or "transparency" in base.info
     work = base.convert("RGBA")
     if settings.protect:
-        work = protective_pattern(work, settings)
+        # the preview keeps one fixed layout so it doesn't jump while you adjust things
+        work = protective_pattern(work, settings, seed=1 if preview else None)
     mark = build_mark(settings, work.width)
     x, y = mark_origin(work.width, work.height, mark.width, mark.height, settings)
     layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
     _place(layer, mark, x, y)
     out = draw_credit(Image.alpha_composite(work, layer), settings)
-    if settings.hidden_mark:
+    if settings.hidden_mark and not preview:  # invisible, so the preview skips it
         alpha = out.getchannel("A")
         out = fingerprint.embed(out)
         if had_alpha:
