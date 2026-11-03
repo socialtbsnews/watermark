@@ -1,7 +1,7 @@
 # TBS Watermark (desktop app)
 
 Drag photos onto the window. Each one is saved with the TBS watermark in the
-centre, in a `Watermarked` folder next to the original. Originals are never changed.
+centre, in a `Watermarked` folder next to the original, or in any folder you pick with "Output folder…". Originals are never changed.
 
 ## Photo credit
 Type the photographer's name in "Photo by". Every photo gets a credit line at the

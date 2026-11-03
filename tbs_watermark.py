@@ -77,7 +77,7 @@ class App:
         self.sample = None
 
         root.title("TBS Watermark")
-        root.geometry("780x700")
+        root.geometry("800x740")
         root.minsize(560, 520)
         root.configure(bg=BG)
 
@@ -95,7 +95,7 @@ class App:
 
         # Drop zone / preview
         self.drop = tk.Label(root, bg=PANEL, fg=MUTED, font=("Segoe UI", 13),
-                             text="Drop photos here\n\nJPG, PNG, TIFF, WebP\nSaved to a \"Watermarked\" folder next to each photo",
+                             text="Drop photos here\n\nJPG, PNG, TIFF, WebP",
                              relief="flat", bd=0, cursor="hand2")
         self.drop.pack(fill="both", expand=True, padx=20, pady=8)
         self.drop.bind("<Button-1>", lambda e: self.choose_photos())
@@ -117,6 +117,16 @@ class App:
         self.size_var = tk.DoubleVar(value=self.s.size_pct)
         self.op_var = tk.DoubleVar(value=self.s.opacity_pct)
         self._slider(ctl, "Size", self.size_var, 5, 80, "% of photo width")
+        row0 = tk.Frame(ctl, bg=BG)
+        row0.pack(fill="x", pady=4)
+        tk.Button(row0, text="Output folder…", command=self.choose_out, bg=PANEL, fg=INK,
+                  activebackground=ACCENT, relief="flat", padx=12, pady=6).pack(side="left")
+        self.out_lbl = tk.Label(row0, bg=BG, fg=MUTED, anchor="w")
+        self.out_lbl.pack(side="left", padx=10, fill="x", expand=True)
+        tk.Button(row0, text="Reset", command=self.reset_out, bg=PANEL, fg=INK,
+                  relief="flat", padx=10, pady=6).pack(side="right")
+        self.refresh_out_label()
+
         row2 = tk.Frame(ctl, bg=BG)
         row2.pack(fill="x", pady=4)
         tk.Label(row2, text="Photo by", width=8, anchor="w", bg=BG, fg=INK).pack(side="left")
@@ -189,6 +199,24 @@ class App:
             self.logo_lbl.config(text=name)
         else:
             self.logo_lbl.config(text="No logo chosen: using the text \"TBS\"")
+
+    def refresh_out_label(self):
+        if self.s.out_dir and os.path.isdir(self.s.out_dir):
+            self.out_lbl.config(text=f"Saving to: {self.s.out_dir}")
+        else:
+            self.out_lbl.config(text="Saving to: a \"Watermarked\" folder next to each photo")
+
+    def choose_out(self):
+        p = filedialog.askdirectory(title="Choose where to save watermarked photos")
+        if p:
+            self.s.out_dir = p
+            save_settings(self.s)
+            self.refresh_out_label()
+
+    def reset_out(self):
+        self.s.out_dir = ""
+        save_settings(self.s)
+        self.refresh_out_label()
 
     # ---------- actions
     def choose_logo(self):

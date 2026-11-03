@@ -25,6 +25,7 @@ class Settings:
     size_pct: float = 25.0       # watermark width as % of photo width
     opacity_pct: float = 60.0    # 0-100
     out_dir_name: str = "Watermarked"
+    out_dir: str = ""            # chosen output folder; empty = "Watermarked" next to each photo
     suffix: str = "_TBS"
     credit_on: bool = True       # bottom-left photo credit line
     brand: str = "THE BUSINESS STANDARD"
@@ -154,7 +155,10 @@ def apply_watermark(photo: Image.Image, settings: Settings) -> Image.Image:
 
 
 def output_path(src: str, settings: Settings) -> str:
-    folder = os.path.join(os.path.dirname(src), settings.out_dir_name)
+    if settings.out_dir and os.path.isdir(settings.out_dir):
+        folder = settings.out_dir
+    else:
+        folder = os.path.join(os.path.dirname(src), settings.out_dir_name)
     os.makedirs(folder, exist_ok=True)
     stem, ext = os.path.splitext(os.path.basename(src))
     path = os.path.join(folder, f"{stem}{settings.suffix}{ext}")
