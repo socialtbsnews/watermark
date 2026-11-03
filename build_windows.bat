@@ -4,7 +4,7 @@ cd /d "%~dp0"
 python -m pip install -r requirements.txt || goto :err
 set ADD=
 if exist logo.png set ADD=--add-data "logo.png;."
-python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 %ADD% --add-data "fonts;fonts" --add-data "brand.png;." --version-file version_info.txt tbs_watermark.py || goto :err
+python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 %ADD% --add-data "fonts;fonts" --add-data "brand.png;." --add-data "icon.png;." --icon icon.ico --version-file version_info.txt tbs_watermark.py || goto :err
 echo.
 echo Done. Your app is in the "dist" folder: dist\TBS Watermark.exe
 pause

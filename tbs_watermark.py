@@ -115,8 +115,24 @@ class App:
         left.pack(side="left", fill="both", expand=True, padx=(16, 8), pady=12)
         head = tk.Frame(left, bg=BG)
         head.pack(fill="x", pady=(0, 8))
-        tk.Label(head, text="TBS", fg=ACCENT, bg=BG, font=("Segoe UI", 18, "bold")).pack(side="left")
-        tk.Label(head, text=" Watermark", fg=INK, bg=BG, font=("Segoe UI", 18, "bold")).pack(side="left")
+        self._head_imgs = []
+        try:  # TBS logo + wordmark in the header
+            for name, h in (("logo.png", 34), ("brand.png", 18)):
+                im = Image.open(resource(name)).convert("RGBA")
+                im = im.resize((round(im.width * h / im.height), h), Image.LANCZOS)
+                self._head_imgs.append(ImageTk.PhotoImage(im, master=root))
+            tk.Label(head, image=self._head_imgs[0], bg=BG).pack(side="left")
+            tk.Label(head, image=self._head_imgs[1], bg=BG).pack(side="left", padx=(10, 0))
+            tk.Label(head, text="WATERMARK", fg=ACCENT, bg=BG,
+                     font=("Segoe UI", 11, "bold")).pack(side="left", padx=(10, 0), pady=(3, 0))
+        except Exception:
+            tk.Label(head, text="TBS", fg=ACCENT, bg=BG, font=("Segoe UI", 18, "bold")).pack(side="left")
+            tk.Label(head, text=" Watermark", fg=INK, bg=BG, font=("Segoe UI", 18, "bold")).pack(side="left")
+        try:  # window and taskbar icon
+            self._icon = ImageTk.PhotoImage(Image.open(resource("icon.png")).resize((64, 64), Image.LANCZOS), master=root)
+            root.iconphoto(True, self._icon)
+        except Exception:
+            pass
 
         self.canvas = tk.Canvas(left, bg=PANEL, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
