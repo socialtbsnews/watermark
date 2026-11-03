@@ -53,15 +53,23 @@ def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
     bold_big, bold_small = _font("PT_Serif-Web-Bold.ttf", cap), _font("PT_Serif-Web-Bold.ttf", small)
     ital = _font("PT_Serif-Web-Italic.ttf", round(cap * 0.95))
 
-    # Build runs of (text, font)
+    # Brand: the TBS wordmark image if bundled, else small-caps text
+    brand_img = None
+    bp = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "brand.png")
+    if settings.brand.strip() and os.path.exists(bp):
+        bm = Image.open(bp).convert("RGBA")
+        bh = round(cap * 0.85)
+        brand_img = bm.resize((max(1, round(bm.width * bh / bm.height)), bh), Image.LANCZOS)
+
     runs = []
     brand = settings.brand.strip().upper()
-    for i, word in enumerate(brand.split()):
-        if i:
-            runs.append((" ", bold_small))
-        runs.append((word[0], bold_big))
-        if len(word) > 1:
-            runs.append((word[1:], bold_small))
+    if brand and brand_img is None:
+        for i, word in enumerate(brand.split()):
+            if i:
+                runs.append((" ", bold_small))
+            runs.append((word[0], bold_big))
+            if len(word) > 1:
+                runs.append((word[1:], bold_small))
     name = settings.photographer.strip()
     if name:
         runs.append((" | " if brand else "", ital))
@@ -83,6 +91,13 @@ def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
     x = round(W * 0.025)
     baseline = H - round(cap * 1.1)
     shadow = max(1, round(cap * 0.05))
+    if brand_img is not None:
+        sh = Image.new("RGBA", brand_img.size, (0, 0, 0, 0))
+        sh.putalpha(brand_img.getchannel("A").point(lambda a: a * 110 // 255))
+        top = baseline - brand_img.height
+        out.alpha_composite(sh, (x + shadow, top + shadow))
+        out.alpha_composite(brand_img, (x, top))
+        x += brand_img.width
     for text, font in runs:
         d.text((x + shadow, baseline + shadow), text, font=font, fill=(0, 0, 0, 110), anchor="ls")
         d.text((x, baseline), text, font=font, fill=(255, 255, 255, 255), anchor="ls")

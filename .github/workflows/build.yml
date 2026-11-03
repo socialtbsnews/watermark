@@ -20,12 +20,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png;." --add-data "fonts;fonts" tbs_watermark.py
+          python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png;." --add-data "fonts;fonts" --add-data "brand.png;." tbs_watermark.py
           mv "dist/TBS Watermark.exe" dist/TBS-Watermark-Windows.exe
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
-          python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png:." --add-data "fonts:fonts" tbs_watermark.py
+          python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png:." --add-data "fonts:fonts" --add-data "brand.png:." tbs_watermark.py
           cd dist && ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
       - uses: actions/upload-artifact@v4
         with:
