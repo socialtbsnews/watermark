@@ -180,8 +180,8 @@ class App:
         r = tk.Frame(body, bg=BG); r.pack(fill="x", pady=2)
         tk.Label(r, text="Look", width=8, anchor="w", bg=BG, fg=INK, font=FONT).pack(side="left")
         self.style_menu = ttk.Combobox(r, state="readonly", width=24, font=FONT,
-                                       values=["Dark glass", "Plain logo"])
-        self.style_menu.set("Plain logo" if self.s.style == "plain" else "Dark glass")
+                                       values=["Plain logo", "Dark glass (Photoshop style)"])
+        self.style_menu.set("Dark glass (Photoshop style)" if self.s.style == "glass" else "Plain logo")
         self.style_menu.bind("<<ComboboxSelected>>", lambda e: self.style_changed())
         self.style_menu.pack(side="left")
         self.size_var = tk.DoubleVar(self.root, value=self.s.size_pct)
@@ -273,7 +273,7 @@ class App:
         self.refresh()
 
     def style_changed(self):
-        self.s.style = "plain" if self.style_menu.get() == "Plain logo" else "glass"
+        self.s.style = "glass" if self.style_menu.get().startswith("Dark glass") else "plain"
         save_settings(self.s)
         self.refresh(resize=False)
 
@@ -290,14 +290,14 @@ class App:
         self.hidden_var.set(self.s.hidden_mark)
         self.protect_var.set(self.s.protect)
         self.pos_menu.set(self.s.credit_pos.replace("-", " ").capitalize())
-        self.style_menu.set("Plain logo" if self.s.style == "plain" else "Dark glass")
+        self.style_menu.set("Dark glass (Photoshop style)" if self.s.style == "glass" else "Plain logo")
         for f in self.files:
             self.pos[f] = (0.5, 0.5)
         for refresh_label in getattr(self, "_slider_labels", []):
             refresh_label()
         save_settings(self.s)
         self.refresh()
-        self.set_status("Settings reset: logo centred, size 25%, opacity 60%, dark glass look.")
+        self.set_status("Settings reset: logo centred, size 25%, opacity 60%, plain logo.")
 
     def protect_changed(self):
         self.s.protect = bool(self.protect_var.get())

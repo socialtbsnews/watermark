@@ -37,7 +37,7 @@ class Settings:
     protect: bool = False        # faint randomised logo pattern over the whole photo
     protect_pct: float = 10.0    # pattern opacity
     hidden_mark: bool = True     # invisible TBS fingerprint
-    style: str = "glass"         # "glass" = dark disc, light letters (Photoshop look); "plain" = logo as is
+    style: str = "plain"         # "plain" = logo as is; "glass" = dark disc, light letters (Photoshop look)
     pos_x: float = 0.5           # watermark centre, as a fraction of photo width
     pos_y: float = 0.5           # ... and of photo height (0.5, 0.5 = centre)
 

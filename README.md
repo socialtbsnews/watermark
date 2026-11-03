@@ -11,9 +11,9 @@ corner you pick under "Credit at" (top left, top right, bottom left or bottom ri
 Untick "Show credit line" to leave it off. Font: PT Serif (SIL Open Font License, see `fonts/OFL.txt`).
 
 ## Look
-- **Dark glass** (default): the logo's circle becomes a dark tint and the letters a
-  light tint, so it reads on bright and dark photos.
-- **Plain logo**: the logo as supplied.
+- **Plain logo** (default): the logo as supplied.
+- **Dark glass (Photoshop style)**: the logo's circle becomes a dark tint and the
+  letters a light tint, so it reads on bright and dark photos.
 **Reset all settings** restores the default look, size, opacity and position
 (it keeps the photographer name, logo and output folder).
 
