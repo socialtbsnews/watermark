@@ -27,23 +27,17 @@ jobs:
         run: |
           python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --osx-bundle-identifier com.tbsnews.watermark --collect-all tkinterdnd2 --add-data "logo.png:." --add-data "fonts:fonts" --add-data "brand.png:." tbs_watermark.py
           cd dist && ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-${{ runner.os }}
-          path: |
-            dist/*.exe
-            dist/*.zip
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with: { path: out, merge-multiple: true }
-      - name: Publish release
+      - name: Publish to the release (each system as soon as it is built)
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.0.${{ github.run_number }}" out/* \
-            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
-            --title "TBS Watermark v1.0.${{ github.run_number }}" \
-            --notes "Download TBS-Watermark-Windows.exe for Windows or TBS-Watermark-Mac.zip for Mac."
+          TAG="v1.0.${{ github.run_number }}"
+          gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+              --title "TBS Watermark $TAG" \
+              --notes "Download TBS-Watermark-Windows.exe for Windows or TBS-Watermark-Mac.zip for Mac." || true
+          for i in 1 2 3; do
+            gh release upload "$TAG" dist/TBS-Watermark-* --clobber --repo "${{ github.repository }}" && break
+            sleep 5
+          done
