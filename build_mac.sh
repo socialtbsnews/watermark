@@ -5,5 +5,5 @@ cd "$(dirname "$0")"
 python3 -m pip install -r requirements.txt
 ADD=()
 [ -f logo.png ] && ADD=(--add-data "logo.png:.")
-python3 -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --collect-all tkinterdnd2 "${ADD[@]}" --add-data "fonts:fonts" --add-data "brand.png:." tbs_watermark.py
+python3 -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --osx-bundle-identifier com.tbsnews.watermark --collect-all tkinterdnd2 "${ADD[@]}" --add-data "fonts:fonts" --add-data "brand.png:." tbs_watermark.py
 echo "Done. Your app is in dist/TBS Watermark.app"
