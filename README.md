@@ -25,6 +25,8 @@ Untick "Show credit line" to leave it off. Font: PT Serif (SIL Open Font License
   at most about 5 levels out of 255). It survives resizing, JPEG re-saving, screenshots and crops of up to
   about 20% per side. Use **Check photo…** on any image to see if it came from TBS.
   Rotation, very large crops or heavy edits can defeat it. No watermark is impossible to remove.
+  The preview shows a "Hidden fingerprint ON" tag; tick "Show fingerprint in preview" to see the
+  pattern boosted (preview only; exported photos stay invisible).
 
 ## Quality
 - Full original resolution, no resizing.
