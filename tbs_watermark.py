@@ -77,7 +77,7 @@ class App:
         self.sample = None
 
         root.title("TBS Watermark")
-        root.geometry("800x740")
+        root.geometry("820x780")
         root.minsize(560, 520)
         root.configure(bg=BG)
 
@@ -139,6 +139,16 @@ class App:
                        command=self.credit_changed).pack(side="left")
         self.name_var.trace_add("write", lambda *_: self.credit_changed())
 
+        row3 = tk.Frame(ctl, bg=BG)
+        row3.pack(fill="x", pady=4)
+        tk.Label(row3, text="Credit at", width=8, anchor="w", bg=BG, fg=INK).pack(side="left")
+        self.pos_var = tk.StringVar(value=self.s.credit_pos)
+        for label, val in (("Top left", "top-left"), ("Top right", "top-right"),
+                           ("Bottom left", "bottom-left"), ("Bottom right", "bottom-right")):
+            tk.Radiobutton(row3, text=label, value=val, variable=self.pos_var, bg=BG, fg=INK,
+                           selectcolor=PANEL, activebackground=BG, activeforeground=INK,
+                           command=self.credit_changed).pack(side="left", padx=(8, 0))
+
         self._slider(ctl, "Opacity", self.op_var, 0, 100, "% (0 = invisible, 100 = solid)")
 
         bottom = tk.Frame(root, bg=BG)
@@ -176,6 +186,7 @@ class App:
     def credit_changed(self):
         self.s.photographer = self.name_var.get()
         self.s.credit_on = bool(self.credit_var.get())
+        self.s.credit_pos = self.pos_var.get() if hasattr(self, "pos_var") else self.s.credit_pos
         save_settings(self.s)
         self.show_sample()
 

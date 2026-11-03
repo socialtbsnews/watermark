@@ -30,6 +30,7 @@ class Settings:
     credit_on: bool = True       # bottom-left photo credit line
     brand: str = "THE BUSINESS STANDARD"
     photographer: str = ""       # e.g. "Syed Zakir Hossain"; empty = brand only
+    credit_pos: str = "bottom-left"  # top-left, top-right, bottom-left, bottom-right
 
 
 def _font_path(name: str) -> str:
@@ -76,21 +77,27 @@ def draw_credit(img: Image.Image, settings: Settings) -> Image.Image:
         runs.append((" | " if brand else "", ital))
         runs.append((f"Photo: {name}", ital))
 
+    pos = settings.credit_pos if settings.credit_pos in ("top-left", "top-right", "bottom-left", "bottom-right") else "bottom-left"
+    at_top, at_right = pos.startswith("top"), pos.endswith("right")
+
     # Soft dark band behind the text for legibility on bright photos
     band_h = round(cap * 4.2)
     grad = Image.new("L", (1, band_h))
     for y in range(band_h):
-        grad.putpixel((0, y), round(150 * (y / band_h) ** 1.6))
+        t = (band_h - 1 - y) if at_top else y
+        grad.putpixel((0, y), round(150 * (t / band_h) ** 1.6))
     shade = Image.new("RGBA", (W, band_h), (0, 0, 0, 0))
     shade.putalpha(grad.resize((W, band_h)))
     out = img.convert("RGBA")
     band = Image.new("RGBA", out.size, (0, 0, 0, 0))
-    band.paste(shade, (0, H - band_h))
+    band.paste(shade, (0, 0 if at_top else H - band_h))
     out = Image.alpha_composite(out, band)
 
     d = ImageDraw.Draw(out)
-    x = round(W * 0.025)
-    baseline = H - round(cap * 1.1)
+    margin = round(W * 0.025)
+    total = (brand_img.width if brand_img is not None else 0) + sum(d.textlength(t, font=f) for t, f in runs)
+    x = round(W - margin - total) if at_right else margin
+    baseline = round(cap * 2.0) if at_top else H - round(cap * 1.1)
     shadow = max(1, round(cap * 0.05))
     if brand_img is not None:
         sh = Image.new("RGBA", brand_img.size, (0, 0, 0, 0))
