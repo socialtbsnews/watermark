@@ -14,7 +14,7 @@ import random
 import sys
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps
 
 import fingerprint
 
@@ -37,6 +37,9 @@ class Settings:
     protect: bool = False        # faint randomised logo pattern over the whole photo
     protect_pct: float = 10.0    # pattern opacity
     hidden_mark: bool = True     # invisible TBS fingerprint
+    style: str = "glass"         # "glass" = dark disc, light letters (Photoshop look); "plain" = logo as is
+    pos_x: float = 0.5           # watermark centre, as a fraction of photo width
+    pos_y: float = 0.5           # ... and of photo height (0.5, 0.5 = centre)
 
 
 def _font_path(name: str) -> str:
@@ -139,11 +142,34 @@ def _text_mark(text: str, width: int) -> Image.Image:
     return im
 
 
+def _glass(mark: Image.Image) -> Image.Image:
+    """Dark-glass look: the logo's solid shape becomes a dark tint and the
+    cut-out letters a light tint, so both read on bright and dark photos."""
+    a = mark.getchannel("A")
+    pad = Image.new("L", (a.width + 2, a.height + 2), 0)
+    pad.paste(a.point(lambda v: 255 if v >= 128 else 0), (1, 1))
+    ImageDraw.floodfill(pad, (0, 0), 128)                  # mark the outside
+    holes = pad.crop((1, 1, a.width + 1, a.height + 1)).point(lambda v: 255 if v == 0 else 0)
+    if holes.getbbox() is None:                            # no cut-outs: just tint the shape
+        out = Image.new("RGBA", mark.size, (12, 16, 32, 0))
+        out.putalpha(a.point(lambda v: v * 3 // 4))
+        return out
+    hull = ImageChops.lighter(a, holes)
+    letters = ImageChops.subtract(hull, a)
+    dark = Image.new("RGBA", mark.size, (12, 16, 32, 0))
+    dark.putalpha(ImageChops.subtract(hull, letters).point(lambda v: v * 3 // 4))
+    light = Image.new("RGBA", mark.size, (255, 255, 255, 0))
+    light.putalpha(letters.point(lambda v: v // 2))
+    return Image.alpha_composite(dark, light)
+
+
 def build_mark(settings: Settings, photo_w: int) -> Image.Image:
     if settings.logo_path and os.path.exists(settings.logo_path):
         mark = Image.open(settings.logo_path).convert("RGBA")
     else:
         mark = _text_mark(settings.text or "TBS", photo_w)
+    if settings.style == "glass":
+        mark = _glass(mark)
     target_w = max(1, round(photo_w * settings.size_pct / 100))
     target_h = max(1, round(mark.height * target_w / mark.width))
     mark = mark.resize((target_w, target_h), Image.LANCZOS)
@@ -187,18 +213,24 @@ def protective_pattern(work: Image.Image, settings: Settings) -> Image.Image:
     return Image.alpha_composite(work, layer)
 
 
+def mark_origin(W: int, H: int, mw: int, mh: int, settings: Settings) -> tuple[int, int]:
+    """Top-left corner of the watermark, kept fully inside the photo."""
+    x = round(settings.pos_x * W - mw / 2)
+    y = round(settings.pos_y * H - mh / 2)
+    return min(max(0, x), max(0, W - mw)), min(max(0, y), max(0, H - mh))
+
+
 def apply_watermark(photo: Image.Image, settings: Settings) -> Image.Image:
-    """Return a new image with the watermark centred. Same pixel size as input."""
+    """Return a new image with the watermark at (pos_x, pos_y). Same pixel size as input."""
     base = ImageOps.exif_transpose(photo)  # upright, lossless pixel reorder
     had_alpha = base.mode in ("RGBA", "LA") or "transparency" in base.info
     work = base.convert("RGBA")
     if settings.protect:
         work = protective_pattern(work, settings)
     mark = build_mark(settings, work.width)
-    x = (work.width - mark.width) // 2
-    y = (work.height - mark.height) // 2
+    x, y = mark_origin(work.width, work.height, mark.width, mark.height, settings)
     layer = Image.new("RGBA", work.size, (0, 0, 0, 0))
-    layer.paste(mark, (x, y), mark)
+    _place(layer, mark, x, y)
     out = draw_credit(Image.alpha_composite(work, layer), settings)
     if settings.hidden_mark:
         alpha = out.getchannel("A")
