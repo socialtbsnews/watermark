@@ -11,7 +11,7 @@ centre, in a `Watermarked` folder next to the original. Originals are never chan
 - Camera data (EXIF), colour profile and DPI are kept.
 
 ## Your logo
-Put your logo as `logo.png` (transparent background) in this folder before
+The TBS logo (`logo.png`) is built into the app.
 building, and it is built into the app. You can also pick a logo inside the
 app with "Choose logo…"; the app remembers it. Without a logo it uses the text "TBS".
 

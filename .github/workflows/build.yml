@@ -1,5 +1,10 @@
 name: Build desktop app
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     strategy:
@@ -15,17 +20,30 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          ADD=""; [ -f logo.png ] && ADD='--add-data logo.png;.'
-          python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 $ADD tbs_watermark.py
+          python -m PyInstaller --noconfirm --onefile --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png;." tbs_watermark.py
+          mv "dist/TBS Watermark.exe" dist/TBS-Watermark-Windows.exe
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
-          ADD=""; [ -f logo.png ] && ADD='--add-data logo.png:.'
-          python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --collect-all tkinterdnd2 $ADD tbs_watermark.py
-          cd dist && zip -r "TBS-Watermark-mac.zip" "TBS Watermark.app"
+          python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --collect-all tkinterdnd2 --add-data "logo.png:." tbs_watermark.py
+          cd dist && ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: TBS-Watermark-${{ runner.os }}
+          name: app-${{ runner.os }}
           path: |
             dist/*.exe
             dist/*.zip
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" out/* \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "TBS Watermark v1.0.${{ github.run_number }}" \
+            --notes "Download TBS-Watermark-Windows.exe for Windows or TBS-Watermark-Mac.zip for Mac."

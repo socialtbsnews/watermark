@@ -43,15 +43,18 @@ def load_settings() -> Settings:
                     setattr(s, k, v)
     except Exception:
         pass
-    if not s.logo_path and os.path.exists(resource("logo.png")):
+    if not (s.logo_path and os.path.exists(s.logo_path)) and os.path.exists(resource("logo.png")):
         s.logo_path = resource("logo.png")
     return s
 
 
 def save_settings(s: Settings) -> None:
+    data = asdict(s)
+    if data["logo_path"] == resource("logo.png"):
+        data["logo_path"] = ""  # built-in logo: its temp path changes every launch
     try:
         with open(CONFIG, "w", encoding="utf-8") as f:
-            json.dump(asdict(s), f, indent=2)
+            json.dump(data, f, indent=2)
     except Exception:
         pass
 
@@ -114,7 +117,7 @@ class App:
         self.size_var = tk.DoubleVar(value=self.s.size_pct)
         self.op_var = tk.DoubleVar(value=self.s.opacity_pct)
         self._slider(ctl, "Size", self.size_var, 5, 80, "% of photo width")
-        self._slider(ctl, "Opacity", self.op_var, 5, 100, "%")
+        self._slider(ctl, "Opacity", self.op_var, 0, 100, "% (0 = invisible, 100 = solid)")
 
         bottom = tk.Frame(root, bg=BG)
         bottom.pack(fill="x", padx=20, pady=(4, 16))
@@ -135,7 +138,7 @@ class App:
         row = tk.Frame(parent, bg=BG)
         row.pack(fill="x", pady=4)
         tk.Label(row, text=label, width=8, anchor="w", bg=BG, fg=INK).pack(side="left")
-        val = tk.Label(row, width=20, anchor="w", bg=BG, fg=MUTED)
+        val = tk.Label(row, width=32, anchor="w", bg=BG, fg=MUTED)
 
         def changed(*_):
             val.config(text=f"{var.get():.0f}{unit}")
@@ -164,7 +167,8 @@ class App:
 
     def refresh_logo_label(self):
         if self.s.logo_path and os.path.exists(self.s.logo_path):
-            self.logo_lbl.config(text=os.path.basename(self.s.logo_path))
+            name = "Built-in TBS logo" if self.s.logo_path == resource("logo.png") else os.path.basename(self.s.logo_path)
+            self.logo_lbl.config(text=name)
         else:
             self.logo_lbl.config(text="No logo chosen: using the text \"TBS\"")
 
