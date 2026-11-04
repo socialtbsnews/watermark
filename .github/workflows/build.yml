@@ -26,6 +26,9 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python -m PyInstaller --noconfirm --windowed --name "TBS Watermark" --osx-bundle-identifier com.tbsnews.watermark --collect-all tkinterdnd2 --add-data "logo.png:." --add-data "fonts:fonts" --add-data "brand.png:." --add-data "icon.png:." --icon icon.png tbs_watermark.py
+          # ad-hoc sign so macOS doesn't report the app as "damaged"
+          codesign --force --deep --sign - "dist/TBS Watermark.app"
+          codesign --verify --deep --verbose=2 "dist/TBS Watermark.app"
           cd dist && ditto -c -k --keepParent "TBS Watermark.app" TBS-Watermark-Mac.zip
       - name: Publish to the release (each system as soon as it is built)
         shell: bash
