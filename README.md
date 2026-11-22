@@ -28,8 +28,7 @@ Untick "Show credit line" to leave it off. Font: PT Serif (SIL Open Font License
   Rotation, very large crops or heavy edits can defeat it. No watermark is impossible to remove.
   Photos made with older versions of the app (which used a stronger, visible-on-smooth-areas
   fingerprint) are still recognised by Check photo.
-  The preview shows a "Hidden fingerprint ON" tag; tick "Show fingerprint in preview" to see the
-  pattern boosted (preview only; exported photos stay invisible).
+  The preview shows a "Hidden fingerprint ON" tag and looks exactly like the exported photo.
 
 ## Quality
 - Full original resolution, no resizing.
