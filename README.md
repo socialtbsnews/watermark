@@ -21,17 +21,20 @@ Untick "Show credit line" to leave it off. Font: PT Serif (SIL Open Font License
 - **Protective pattern** (off by default): a faint TBS logo repeated across the whole
   photo, with a new random position, size and angle for every tile and every photo.
   Removing it means repainting the entire picture. "Pattern" sets its strength.
-- **Hidden fingerprint** (on by default): an invisible TBS code (each pixel changes by
-  at most about 5 levels out of 255). It survives resizing, JPEG re-saving, screenshots and crops of up to
-  about 20% per side. Use **Check photo…** on any image to see if it came from TBS.
+- **Hidden fingerprint** (on by default): an invisible TBS code. On smooth areas (sky, skin,
+  blurred backgrounds) pixels change by about a quarter of a level out of 255; it is put mostly into
+  fine texture, where the eye can't see it. It survives resizing, JPEG re-saving (WhatsApp, Facebook),
+  screenshots and crops of up to about a third per side. Use **Check photo…** on any image to see if it came from TBS.
   Rotation, very large crops or heavy edits can defeat it. No watermark is impossible to remove.
+  Photos made with older versions of the app (which used a stronger, visible-on-smooth-areas
+  fingerprint) are still recognised by Check photo.
   The preview shows a "Hidden fingerprint ON" tag; tick "Show fingerprint in preview" to see the
   pattern boosted (preview only; exported photos stay invisible).
 
 ## Quality
 - Full original resolution, no resizing.
 - JPEG saved at maximum quality (100, no chroma subsampling). Tested on a
-  4000 x 3000 photo: outside the watermark, pixels differ by at most 1 level out of 255, which is invisible (up to about 5 levels with the hidden fingerprint on, still invisible).
+  4000 x 3000 photo: outside the watermark, pixels differ by at most 1 level out of 255, which is invisible (the hidden fingerprint adds about a quarter of a level on smooth areas, a few levels only inside fine texture).
 - PNG, TIFF and WebP are saved lossless.
 - Camera data (EXIF), colour profile and DPI are kept.
 
