@@ -228,9 +228,6 @@ class App:
         r = tk.Frame(body, bg=BG); r.pack(fill="x")
         self._check(r, "Hidden fingerprint", self.hidden_var, self.protect_changed).pack(side="left")
         self._btn(r, "Check photo…", self.check_photo).pack(side="right")
-        self.reveal_var = tk.BooleanVar(self.root, value=False)
-        self._check(body, "Show fingerprint in preview (preview only)", self.reveal_var,
-                    lambda: self.refresh()).pack(anchor="w", padx=(20, 0))
         self._check(body, "Protective pattern", self.protect_var, self.protect_changed).pack(anchor="w")
         self.prot_var = tk.DoubleVar(self.root, value=self.s.protect_pct)
         self._slider(body, "Pattern", self.prot_var, 4, 40)
@@ -423,10 +420,8 @@ class App:
         st = self.settings_for(self.current())
         marked = apply_watermark(self.thumb, st, preview=True)
         if st.hidden_mark:
-            # Real fingerprint in the preview too. "Show fingerprint" boosts it
-            # (preview only) so you can see where it is; exports stay invisible.
-            marked = (fingerprint.embed(marked, amp=14.0, floor=0.6) if self.reveal_var.get()
-                      else fingerprint.embed(marked))
+            # The preview carries the real, invisible fingerprint, exactly as exported.
+            marked = fingerprint.embed(marked)
         self.preview_img = ImageTk.PhotoImage(marked, master=self.root)
         x0, y0 = (cw - marked.width) // 2, (ch - marked.height) // 2
         c.create_image(x0, y0, image=self.preview_img, anchor="nw")
@@ -438,7 +433,7 @@ class App:
                            outline=ACCENT, dash=(4, 3))
         self.mark_box = (x0 + mx, y0 + my, mark.width, mark.height)
         if st.hidden_mark:
-            tag = "Hidden fingerprint ON" + ("  (shown boosted, preview only)" if self.reveal_var.get() else "  (invisible)")
+            tag = "Hidden fingerprint ON  (invisible)"
             tx, ty = x0 + marked.width - 8, y0 + 8
             c.create_rectangle(tx - 8 * len(tag) - 4, ty - 2, tx + 4, ty + 20, fill="#11161C", outline="")
             c.create_text(tx, ty, text=tag, anchor="ne", fill="#FFFFFF", font=("Segoe UI", 9, "bold"))
